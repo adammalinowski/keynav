@@ -23,7 +23,9 @@ start with whatever is simplest, and see what happens. this is the hard part. fi
 todo
 - update indexes at some point for when links change with js (moved/added/deleted)
 - handling for links that wrap onto two lines
-
+- make highlighting use border/outline, but in a way that works with overflow: hidden
+- make moving off-screen do scrolling
+- when no link is active, select top-left visible link on any shift-direction press
 
 */
 
@@ -159,20 +161,42 @@ function getNextLinkLeft($link) {
 
 $(window).bind('keydown', function(e){
 
+	if (e.which == 27) {  // escape to deactivate
+		resetLink();
+	}
+
 	if (e.shiftKey && e.which == 37) {
 		getNextLinkLeft(link);
+		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 39) {
 		getNextLinkRight(link);
+		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 38) {
 		getNextLinkUp(link);
+		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 40) {
 		getNextLinkDown(link);
+		e.preventDefault();
+	}
+
+	if (e.which == 13) {
+		// check if link is selected
+		if (e.shiftKey) {
+			if (e.ctrlKey) {
+				self.port.emit("open-new-tab", link.attr('href'));
+			} else {
+				self.port.emit("open-new-background-tab", link.attr('href'));
+			}
+		} else {
+			self.port.emit("open", link.attr('href'));
+		}
+		e.preventDefault();
 	}
 
 });
