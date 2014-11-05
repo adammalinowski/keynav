@@ -20,17 +20,52 @@ but you still need to be able to move around A-B-C at will...
 
 start with whatever is simplest, and see what happens. this is the hard part. first get everything else working
 
+todo
+- update indexes at some point for when links change with js (moved/added/deleted)
+- handling for links that wrap onto two lines
+
+
 */
 
-function linkEdges(link) {
-	var offset = link.offset();
+$(document).ready(function() {
+
+var link = $('a').eq(0);
+
+function getOriginalBackgroundColour() {
+	return (link.css('background-color') || 'inherit');
+}
+var originalBackgroundColour = getOriginalBackgroundColour();
+
+function highlightLink() {
+	link.css('background-color', 'red');
+}
+highlightLink();
+
+function resetLink(){
+	link.css('background-color', originalBackgroundColour);
+}
+
+function linkEdges($link) {
+	var offset = $link.offset();
 	return {
 		'top': offset.top,
-		'bottom': offset.top + link.height(),
+		'bottom': offset.top + $link.height(),
 		'left': offset.left,
-		'right': offset.left + link.width()
+		'right': offset.left + $link.width()
 	}
 }
+
+// onload, pre-compute all link edges
+var linkIndexToEdges = []
+var linkIndexToLinks = []
+function blah() {
+	$('a').map(function(i){
+		$link = $(this);
+		linkIndexToLinks.push($link);
+		linkIndexToEdges.push(linkEdges($link));
+	});
+}
+blah();
 
 function overlapVertical(edges, foundEdges) {
 	return ((edges.left < foundEdges.right && edges.right > foundEdges.left) ||
@@ -46,15 +81,20 @@ function getNextLink($link, positionFunc, sortFunc) {
 
 	var edges = linkEdges($link)
 
-    var $foundLinks = $("a").map(function() {
-        var $foundLink = $(this);
-        var foundEdges = linkEdges($foundLink)
-        return positionFunc(edges, foundEdges) ? $foundLink : null;
-    });
-    console.log('found ' + $foundLinks.length)
-    $foundLinks.sort(sortFunc);
-    if (!$foundLinks.length) return null;
-    return $foundLinks[0];
+	var foundLinks = [];
+	for (i = 0; i < linkIndexToEdges.length; ++i) {
+	    if (positionFunc(edges, linkIndexToEdges[i])) {
+	    	foundLinks.push(linkIndexToLinks[i]);
+	    }
+	}
+
+    console.log('found ' + foundLinks.length)
+    foundLinks.sort(sortFunc);
+    if (!foundLinks.length) return;
+	resetLink();
+	link = foundLinks[0];
+	originalBackgroundColour = getOriginalBackgroundColour();
+	highlightLink()
 }
 
 function getNextLinkUp($link) {
@@ -116,67 +156,25 @@ function getNextLinkLeft($link) {
     return getNextLink($link, positionFunc, sortFunc);
 }
 
-var link = $('a').eq(0);
-
-
-function getOriginalBackgroundColour() {
-	return (link.css('background-color') || 'inherit');
-}
-
-var originalBackgroundColour = getOriginalBackgroundColour();
-
-
-function highlightLink() {
-	link.css('background-color', 'red');
-}
-
-highlightLink();
-
-function resetLink(){
-	console.log(originalBackgroundColour)
-	link.css('background-color', originalBackgroundColour);
-}
-
-document.body.style.border = "5px solid yellow";  // is it working?
 
 $(window).bind('keydown', function(e){
 
-	function handleNewLink(new_link) {
-		if (new_link) {
-			resetLink();
-			link = new_link;
-			originalBackgroundColour = getOriginalBackgroundColour();
-			highlightLink()
-		}
-	}
-
 	if (e.shiftKey && e.which == 37) {
-		console.log('left')
-		var new_link = getNextLinkLeft(link);
-		handleNewLink(new_link)
-		console.log('doneleft')
+		getNextLinkLeft(link);
 	}
 
 	if (e.shiftKey && e.which == 39) {
-		console.log('right')
-		var new_link = getNextLinkRight(link);
-		handleNewLink(new_link)
-		console.log('doneright')
+		getNextLinkRight(link);
 	}
 
 	if (e.shiftKey && e.which == 38) {
-		console.log('up')
-		var new_link = getNextLinkUp(link);
-		handleNewLink(new_link)
-		console.log('doneup')
+		getNextLinkUp(link);
 	}
 
 	if (e.shiftKey && e.which == 40) {
-		console.log('down')
-		var new_link = getNextLinkDown(link);
-		handleNewLink(new_link)
-		console.log('donedown')
+		getNextLinkDown(link);
 	}
 
 });
 
+});
