@@ -8,7 +8,12 @@
 font-size: 20px;
 </style>
 
+<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 <script>
+$(document).on("click", "a", function(){
+    alert("It works!");
+});
+
 document.getElementById('div').innerHTML = '\
 <a href="">11111111111</a> &nbsp;&nbsp;&nbsp;&nbsp;  <a href="">cccccccccccccccccc</a>\
 <br>\

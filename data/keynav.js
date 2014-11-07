@@ -27,6 +27,9 @@ todo
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
 - what happens when you hold down shift-down?
+- somehow make enter work for elements that aren't real links but expect mouse
+  - note looks like you can't just trigger because content script cannot trigger page script
+    https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
 
 */
 
