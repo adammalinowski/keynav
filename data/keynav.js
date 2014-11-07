@@ -25,23 +25,23 @@ todo
 - handling for links that wrap onto two lines
 - make highlighting use border/outline, but in a way that works with overflow: hidden
 - make moving off-screen do scrolling
-- when no link is active, select top-left visible link on any shift-direction press
+- redo pixel adjustment for adjacent links
+- secondarily sort by leftness after sorting vertical
 
 */
 
 $(document).ready(function() {
 
-var link = $('a').eq(0);
+var link = undefined;
+var originalBackgroundColour = undefined;
 
 function getOriginalBackgroundColour() {
 	return (link.css('background-color') || 'inherit');
 }
-var originalBackgroundColour = getOriginalBackgroundColour();
 
 function highlightLink() {
 	link.css('background-color', 'red');
 }
-highlightLink();
 
 function resetLink(){
 	link.css('background-color', originalBackgroundColour);
@@ -81,7 +81,27 @@ function overlapHorizontal(edges, foundEdges) {
 
 function getNextLink($link, positionFunc, sortFunc) {
 
-	var edges = linkEdges($link)
+	if ($link) {
+		var edges = linkEdges($link)
+	} else {
+		// if no active link, find top-left visible link
+		var edges = {
+			'top': $(window).scrollTop(),
+			'bottom': $(window).scrollTop() + $(window).height(),
+			'left': $(window).scrollLeft(),
+			'right': $(window).scrollLeft() + $(window).width()
+		}
+		console.log(edges)
+
+	 	var positionFunc = function(edges, foundEdges) {
+			return edges.top < foundEdges.top && edges.left < foundEdges.left && edges.bottom > foundEdges.bottom && edges.right > foundEdges.left;
+	 	}
+
+	 	var sortFunc = function(a, b){
+	 		// todo leftmost
+	     	return a.offset().top > b.offset().top;
+	 	}
+	}
 
 	var foundLinks = [];
 	for (i = 0; i < linkIndexToEdges.length; ++i) {
@@ -89,11 +109,10 @@ function getNextLink($link, positionFunc, sortFunc) {
 	    	foundLinks.push(linkIndexToLinks[i]);
 	    }
 	}
-
-    console.log('found ' + foundLinks.length)
+	console.log('found ' + foundLinks.length)
     foundLinks.sort(sortFunc);
     if (!foundLinks.length) return;
-	resetLink();
+    if (link) resetLink();
 	link = foundLinks[0];
 	originalBackgroundColour = getOriginalBackgroundColour();
 	highlightLink()
@@ -163,6 +182,7 @@ $(window).bind('keydown', function(e){
 
 	if (e.which == 27) {  // escape to deactivate
 		resetLink();
+		link = undefined;
 	}
 
 	if (e.shiftKey && e.which == 37) {
