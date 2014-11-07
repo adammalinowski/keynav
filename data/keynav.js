@@ -24,30 +24,33 @@ todo
 - update indexes at some point for when links change with js (moved/added/deleted)
 - handling for links that wrap onto two lines
 - make highlighting use border/outline, but in a way that works with overflow: hidden
-- make moving off-screen do scrolling
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
+- what happens when you hold down shift-down?
 
 */
 
 $(document).ready(function() {
 
-var link = undefined;
+var $activeLink = undefined;
+var activeLinkEdges = undefined;
 var originalBackgroundColour = undefined;
 
 function getOriginalBackgroundColour() {
-	return (link.css('background-color') || 'inherit');
+	return ($activeLink.css('background-color') || 'inherit');
 }
 
 function highlightLink() {
-	link.css('background-color', 'red');
+	$activeLink.css('background-color', 'red');
+	$activeLink.css('outline', '1px solid red');
 }
 
 function resetLink(){
-	link.css('background-color', originalBackgroundColour);
+	$activeLink.css('background-color', originalBackgroundColour);
+	$activeLink.css('outline', 'none');
 }
 
-function linkEdges($link) {
+function getLinkEdges($link) {
 	var offset = $link.offset();
 	return {
 		'top': offset.top,
@@ -64,7 +67,7 @@ function blah() {
 	$('a').map(function(i){
 		$link = $(this);
 		linkIndexToLinks.push($link);
-		linkIndexToEdges.push(linkEdges($link));
+		linkIndexToEdges.push(getLinkEdges($link));
 	});
 }
 blah();
@@ -79,19 +82,52 @@ function overlapHorizontal(edges, foundEdges) {
 			(edges.bottom > foundEdges.top && edges.top < foundEdges.bottom));
 }
 
-function getNextLink($link, positionFunc, sortFunc) {
-
-	if ($link) {
-		var edges = linkEdges($link)
-	} else {
-		// if no active link, find top-left visible link
-		var edges = {
+function getWindowEdges() {
+	return {
 			'top': $(window).scrollTop(),
 			'bottom': $(window).scrollTop() + $(window).height(),
 			'left': $(window).scrollLeft(),
 			'right': $(window).scrollLeft() + $(window).width()
 		}
-		console.log(edges)
+}
+
+function adjustScroll() {
+
+	// if link is off-screen, scroll
+	var windowEdges = getWindowEdges();
+
+	// if link is beyond bottom
+	if (activeLinkEdges.bottom > windowEdges.bottom) {
+		$(window).scrollTop(activeLinkEdges.bottom - $(window).height() + 50);
+	}
+
+	// if link is beyond top
+	if (activeLinkEdges.top < windowEdges.top) {
+		$(window).scrollTop(activeLinkEdges.top - 10);
+	}
+
+	// if link is beyond left
+	if (activeLinkEdges.left < windowEdges.left) {
+		$(window).scrollLeft(activeLinkEdges.left - 50);
+	}
+
+	// if link is beyond right
+	if (activeLinkEdges.right > windowEdges.right) {
+		$(window).scrollLeft(activeLinkEdges.left - 50);
+	}
+}
+
+function getNextLink(positionFunc, sortFunc) {
+
+	var windowEdges = getWindowEdges()
+	if ($activeLink) {
+		var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
+	}
+
+	// if no active link, or link is off-screen, find top-left visible link
+	// or actually should probably be dependent on direction key...
+	if (!$activeLink || !linkVisible) {
+
 
 	 	var positionFunc = function(edges, foundEdges) {
 			return edges.top < foundEdges.top && edges.left < foundEdges.left && edges.bottom > foundEdges.bottom && edges.right > foundEdges.left;
@@ -101,8 +137,14 @@ function getNextLink($link, positionFunc, sortFunc) {
 	 		// todo leftmost
 	     	return a.offset().top > b.offset().top;
 	 	}
+
+		var edges = windowEdges;  // we want to check positionFunc against the window edges
+	} else {
+		var edges = activeLinkEdges;   // we want to check positionFunc against the active link edges
 	}
 
+	// loop through all links on the page, finding those with appropriate position
+	// (e.g. for shift-down, should be below active link)
 	var foundLinks = [];
 	for (i = 0; i < linkIndexToEdges.length; ++i) {
 	    if (positionFunc(edges, linkIndexToEdges[i])) {
@@ -112,13 +154,15 @@ function getNextLink($link, positionFunc, sortFunc) {
 	console.log('found ' + foundLinks.length)
     foundLinks.sort(sortFunc);
     if (!foundLinks.length) return;
-    if (link) resetLink();
-	link = foundLinks[0];
+    if ($activeLink) resetLink();
+	$activeLink = foundLinks[0];
+	activeLinkEdges = getLinkEdges($activeLink);
 	originalBackgroundColour = getOriginalBackgroundColour();
 	highlightLink()
+	adjustScroll();
 }
 
-function getNextLinkUp($link) {
+function getNextLinkUp() {
 	// edges.top += 1;
 
  	var positionFunc = function(edges, foundEdges) {
@@ -129,11 +173,11 @@ function getNextLinkUp($link) {
      	return a.offset().top < b.offset().top;
  	}
 
- 	return getNextLink($link, positionFunc, sortFunc);
+ 	return getNextLink(positionFunc, sortFunc);
 }
 
 
-function getNextLinkDown($link) {
+function getNextLinkDown() {
 	// edges.bottom -= 1;
 
  	var positionFunc = function(edges, foundEdges) {
@@ -144,10 +188,10 @@ function getNextLinkDown($link) {
      	return a.offset().top > b.offset().top;
  	}
 
-    return getNextLink($link, positionFunc, sortFunc);
+    return getNextLink(positionFunc, sortFunc);
 }
 
-function getNextLinkRight($link) {
+function getNextLinkRight() {
 
 	// edges.right -= 1;
 
@@ -159,10 +203,10 @@ function getNextLinkRight($link) {
     	return a.offset().left > b.offset().left;
     }
 
-    return getNextLink($link, positionFunc, sortFunc);
+    return getNextLink(positionFunc, sortFunc);
 }
 
-function getNextLinkLeft($link) {
+function getNextLinkLeft() {
 
 	// edges.left += 1;  // not needed
 
@@ -174,7 +218,7 @@ function getNextLinkLeft($link) {
     	return a.offset().left < b.offset().left;
     }
 
-    return getNextLink($link, positionFunc, sortFunc);
+    return getNextLink(positionFunc, sortFunc);
 }
 
 
@@ -182,26 +226,26 @@ $(window).bind('keydown', function(e){
 
 	if (e.which == 27) {  // escape to deactivate
 		resetLink();
-		link = undefined;
+		$activeLink = undefined;
 	}
 
 	if (e.shiftKey && e.which == 37) {
-		getNextLinkLeft(link);
+		getNextLinkLeft();
 		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 39) {
-		getNextLinkRight(link);
+		getNextLinkRight();
 		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 38) {
-		getNextLinkUp(link);
+		getNextLinkUp();
 		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 40) {
-		getNextLinkDown(link);
+		getNextLinkDown();
 		e.preventDefault();
 	}
 
@@ -209,12 +253,12 @@ $(window).bind('keydown', function(e){
 		// check if link is selected
 		if (e.shiftKey) {
 			if (e.ctrlKey) {
-				self.port.emit("open-new-tab", link.attr('href'));
+				self.port.emit("open-new-tab", $activeLink.attr('href'));
 			} else {
-				self.port.emit("open-new-background-tab", link.attr('href'));
+				self.port.emit("open-new-background-tab", $activeLink.attr('href'));
 			}
 		} else {
-			self.port.emit("open", link.attr('href'));
+			self.port.emit("open", $activeLink.attr('href'));
 		}
 		e.preventDefault();
 	}
