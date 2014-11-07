@@ -27,6 +27,7 @@ todo
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
 - what happens when you hold down shift-down?
+- disable if currently in text area
 
 */
 
@@ -221,6 +222,9 @@ function getNextLinkLeft() {
     return getNextLink(positionFunc, sortFunc);
 }
 
+function getActiveLinkUrl() {
+	return $activeLink.get(0).href
+}
 
 $(window).bind('keydown', function(e){
 
@@ -250,17 +254,18 @@ $(window).bind('keydown', function(e){
 	}
 
 	if (e.which == 13) {
-		// check if link is selected
-		if (e.shiftKey) {
-			if (e.ctrlKey) {
-				self.port.emit("open-new-tab", $activeLink.attr('href'));
+		if ($activeLink) {
+			if (e.shiftKey) {
+				if (e.ctrlKey) {
+					self.port.emit("open-new-background-tab", getActiveLinkUrl());
+				} else {
+					self.port.emit("open-new-tab", getActiveLinkUrl());
+				}
 			} else {
-				self.port.emit("open-new-background-tab", $activeLink.attr('href'));
+				self.port.emit("open", getActiveLinkUrl());
 			}
-		} else {
-			self.port.emit("open", $activeLink.attr('href'));
+			e.preventDefault();
 		}
-		e.preventDefault();
 	}
 
 });
