@@ -83,22 +83,23 @@ function overlapHorizontal(edges, foundEdges) {
 }
 
 function getWindowEdges() {
+	// do not use jquery for viewport dimensions, returns document dimensions if no doctype
 	return {
 			'top': $(window).scrollTop(),
-			'bottom': $(window).scrollTop() + $(window).height(),
+			'bottom': $(window).scrollTop() + window.innerHeight,
 			'left': $(window).scrollLeft(),
-			'right': $(window).scrollLeft() + $(window).width()
+			'right': $(window).scrollLeft() + window.innerWidth
 		}
 }
 
 function adjustScroll() {
-
 	// if link is off-screen, scroll
+
 	var windowEdges = getWindowEdges();
 
 	// if link is beyond bottom
 	if (activeLinkEdges.bottom > windowEdges.bottom) {
-		$(window).scrollTop(activeLinkEdges.bottom - $(window).height() + 50);
+		$(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 50);
 	}
 
 	// if link is beyond top
