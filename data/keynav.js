@@ -27,7 +27,6 @@ todo
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
 - what happens when you hold down shift-down?
-- disable if currently in text area
 
 */
 
@@ -227,6 +226,11 @@ function getActiveLinkUrl() {
 }
 
 $(window).bind('keydown', function(e){
+
+	// if currently focused in input/textarea, disable keyboard shortcuts
+	if ($("input:focus,textarea:focus").length) {
+		return;
+	}
 
 	if (e.which == 27) {  // escape to deactivate
 		resetLink();
