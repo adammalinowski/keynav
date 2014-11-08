@@ -26,7 +26,7 @@ todo
 - make highlighting use border/outline, but in a way that works with overflow: hidden
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
-- what happens when you hold down shift-down?
+- make getNextLink as fast as possible, and tweak delay if needed
 - somehow make enter work for elements that aren't real links but expect mouse
   - note looks like you can't just trigger because content script cannot trigger page script
     https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
@@ -174,6 +174,11 @@ function getNextLink(positionFunc, sortFunc) {
 	adjustScroll();
 }
 
+function getNextLinkDelay(positionFunc, sortFunc) {
+	// introduce small delay so user can see progress of active link
+    setTimeout(function() { getNextLink(positionFunc, sortFunc) }, 20);
+}
+
 function getNextLinkUp() {
 	// edges.top += 1;
 
@@ -185,7 +190,7 @@ function getNextLinkUp() {
      	return a.offset().top < b.offset().top;
  	}
 
- 	return getNextLink(positionFunc, sortFunc);
+ 	return getNextLinkDelay(positionFunc, sortFunc);
 }
 
 
@@ -200,8 +205,9 @@ function getNextLinkDown() {
      	return a.offset().top > b.offset().top;
  	}
 
-    return getNextLink(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, sortFunc);
 }
+
 
 function getNextLinkRight() {
 
@@ -215,7 +221,7 @@ function getNextLinkRight() {
     	return a.offset().left > b.offset().left;
     }
 
-    return getNextLink(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, sortFunc);
 }
 
 function getNextLinkLeft() {
@@ -230,7 +236,7 @@ function getNextLinkLeft() {
     	return a.offset().left < b.offset().left;
     }
 
-    return getNextLink(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, sortFunc);
 }
 
 function getActiveLinkUrl() {
