@@ -21,15 +21,15 @@ but you still need to be able to move around A-B-C at will...
 start with whatever is simplest, and see what happens. this is the hard part. first get everything else working
 
 todo
-- update indexes at some point for when links change with js (moved/added/deleted)
+- update indexes at some point for when links change with js (moved/added/deleted) (e.g. reddit with res)
 - handling for links that wrap onto two lines
 - make highlighting use border/outline, but in a way that works with overflow: hidden
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
-- make getNextLink as fast as possible, and tweak delay if needed
 - somehow make enter work for elements that aren't real links but expect mouse
   - note looks like you can't just trigger because content script cannot trigger page script
     https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
+- handling for holding down shift-down overtaking scroll?  (i.e. reddit with res)
 
 */
 
@@ -110,7 +110,7 @@ function adjustScroll() {
 
 	// if link is beyond bottom
 	if (activeLinkEdges.bottom > windowEdges.bottom) {
-		$(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 50);
+		$(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 10);
 	}
 
 	// if link is beyond top
@@ -129,7 +129,7 @@ function adjustScroll() {
 	}
 }
 
-function getNextLink(positionFunc, sortFunc) {
+function getNextLink(positionFunc, betterLinkEdges) {
 
 	var windowEdges = getWindowEdges()
 	if ($activeLink) {
@@ -145,9 +145,9 @@ function getNextLink(positionFunc, sortFunc) {
 			return edges.top < foundEdges.top && edges.left < foundEdges.left && edges.bottom > foundEdges.bottom && edges.right > foundEdges.left;
 	 	}
 
-	 	var sortFunc = function(a, b){
+	 	var betterLinkEdges = function(candidateLink, bestLink){  // want topmost
 	 		// todo leftmost
-	     	return a.offset().top > b.offset().top;
+	     	return candidateLink.top < bestLink.top;
 	 	}
 
 		var edges = windowEdges;  // we want to check positionFunc against the window edges
@@ -157,26 +157,36 @@ function getNextLink(positionFunc, sortFunc) {
 
 	// loop through all links on the page, finding those with appropriate position
 	// (e.g. for shift-down, should be below active link)
-	var foundLinks = [];
+	var foundLink = undefined;
+	var foundEdges = undefined;
 	for (i = 0; i < linkIndexToEdges.length; ++i) {
 	    if (positionFunc(edges, linkIndexToEdges[i])) {
-	    	foundLinks.push(linkIndexToLinks[i]);
+	    	if (foundLink) {
+	    		if (betterLinkEdges(linkIndexToEdges[i], foundEdges)) {
+					foundLink = linkIndexToLinks[i];
+					foundEdges = linkIndexToEdges[i];
+				}
+	    	} else {
+	    		foundLink = linkIndexToLinks[i];
+	    		foundEdges = linkIndexToEdges[i];
+	    	}
+
 	    }
 	}
-	console.log('found ' + foundLinks.length)
-    foundLinks.sort(sortFunc);
-    if (!foundLinks.length) return;
+    if (!foundLink) return;
     if ($activeLink) resetLink();
-	$activeLink = foundLinks[0];
+	$activeLink = foundLink;
 	activeLinkEdges = getLinkEdges($activeLink);
 	originalBackgroundColour = getOriginalBackgroundColour();
 	highlightLink()
 	adjustScroll();
 }
 
-function getNextLinkDelay(positionFunc, sortFunc) {
-	// introduce small delay so user can see progress of active link
-    setTimeout(function() { getNextLink(positionFunc, sortFunc) }, 20);
+var delaying = false;
+function getNextLinkDelay(positionFunc, betterLinkEdges) {
+	if (delaying) return false
+	delaying = true;
+	setTimeout(function() { getNextLink(positionFunc, betterLinkEdges); delaying = false; }, 10)
 }
 
 function getNextLinkUp() {
@@ -186,11 +196,11 @@ function getNextLinkUp() {
 		return (edges.top > foundEdges.bottom) && overlapVertical(edges, foundEdges);
  	}
 
- 	var sortFunc = function(a, b){
-     	return a.offset().top < b.offset().top;
+ 	var betterLinkEdges = function(candidateLink, bestLink){  // want lowest
+     	return candidateLink.top > bestLink.top;
  	}
 
- 	return getNextLinkDelay(positionFunc, sortFunc);
+ 	return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 
@@ -201,11 +211,11 @@ function getNextLinkDown() {
 		return (edges.bottom < foundEdges.top) && overlapVertical(edges, foundEdges);
  	}
 
- 	var sortFunc = function(a, b){
-     	return a.offset().top > b.offset().top;
+ 	var betterLinkEdges = function(candidateLink, bestLink){  // want highest
+     	return candidateLink.top < bestLink.top;
  	}
 
-    return getNextLinkDelay(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 
@@ -217,11 +227,11 @@ function getNextLinkRight() {
     	return edges.right < foundEdges.left && overlapHorizontal(edges, foundEdges);
     }
 
-    var sortFunc = function(a, b){
-    	return a.offset().left > b.offset().left;
+    var betterLinkEdges = function(candidateLink, bestLink){  // want leftmost
+    	return candidateLink.left < bestLink.left;
     }
 
-    return getNextLinkDelay(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 function getNextLinkLeft() {
@@ -232,11 +242,11 @@ function getNextLinkLeft() {
     	return edges.left > foundEdges.left && overlapHorizontal(edges, foundEdges);
     }
 
-    var sortFunc = function(a, b){
-    	return a.offset().left < b.offset().left;
+    var betterLinkEdges = function(candidateLink, bestLink){  // want rightmost
+    	return candidateLink.left > bestLink.left;
     }
 
-    return getNextLinkDelay(positionFunc, sortFunc);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 function getActiveLinkUrl() {
