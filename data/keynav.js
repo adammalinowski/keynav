@@ -64,16 +64,17 @@ function getLinkEdges($link) {
 }
 
 // onload, pre-compute all link edges
-var linkIndexToEdges = []
-var linkIndexToLinks = []
-function blah() {
+var linkIndexToEdges, linkIndexToLinks;
+function computeLinks() {
+	linkIndexToEdges = []
+	linkIndexToLinks = []
 	$('a').map(function(i){
 		$link = $(this);
 		linkIndexToLinks.push($link);
 		linkIndexToEdges.push(getLinkEdges($link));
 	});
 }
-blah();
+computeLinks();
 
 function overlapVertical(edges, foundEdges) {
 	return ((edges.left < foundEdges.right && edges.right > foundEdges.left) ||
@@ -95,10 +96,17 @@ function getWindowEdges() {
 		}
 }
 
+$(window).resize(function(){
+	computeLinks();
+	activeLinkEdges = getLinkEdges($activeLink);
+})
+
 function adjustScroll() {
 	// if link is off-screen, scroll
 
 	var windowEdges = getWindowEdges();
+	// console.log(windowEdges)
+	// console.log(activeLinkEdges)
 
 	// if link is beyond bottom
 	if (activeLinkEdges.bottom > windowEdges.bottom) {
@@ -239,6 +247,7 @@ $(window).bind('keydown', function(e){
 	if (e.which == 27) {  // escape to deactivate
 		resetLink();
 		$activeLink = undefined;
+		e.preventDefault();
 	}
 
 	if (e.shiftKey && e.which == 37) {
@@ -261,6 +270,7 @@ $(window).bind('keydown', function(e){
 		e.preventDefault();
 	}
 
+	// enter to open link
 	if (e.which == 13) {
 		if ($activeLink) {
 			if (e.shiftKey) {
