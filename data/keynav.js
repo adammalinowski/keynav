@@ -53,26 +53,32 @@ function resetLink(){
 	$activeLink.css('outline', 'none');
 }
 
-function getLinkEdges($link) {
-	var offset = $link.offset();
+function getLinkEdges(link) {
+	var rect = link.getBoundingClientRect();
 	return {
-		'top': offset.top,
-		'bottom': offset.top + $link.height(),
-		'left': offset.left,
-		'right': offset.left + $link.width()
+		'top': rect.top + window.pageYOffset,
+		'bottom': rect.bottom + window.pageYOffset,
+		'left': rect.left + window.pageXOffset,
+		'right': rect.right + window.pageXOffset
 	}
 }
 
 // onload, pre-compute all link edges
 var linkIndexToEdges, linkIndexToLinks;
+var computing = false;
 function computeLinks() {
+	if (computing) return;  // do not recompute if already underway
+	start = performance.now()
+	computing = true;
 	linkIndexToEdges = []
 	linkIndexToLinks = []
 	$('a').map(function(i){
-		$link = $(this);
-		linkIndexToLinks.push($link);
-		linkIndexToEdges.push(getLinkEdges($link));
+		linkIndexToLinks.push(this);
+		linkIndexToEdges.push(getLinkEdges(this));
 	});
+	computing = false;
+	end = performance.now()
+	console.log('done in ' + (end-start))
 }
 computeLinks();
 
@@ -96,10 +102,21 @@ function getWindowEdges() {
 		}
 }
 
-$(window).resize(function(){
+function recompute() {
 	computeLinks();
-	activeLinkEdges = getLinkEdges($activeLink);
+	if ($activeLink) activeLinkEdges = getLinkEdges($activeLink[0]);
+}
+
+// recompute when window changes size or DOM changes
+$(window).resize(function(){
+	recompute();
 })
+// note, this fires when link changes, needs to be more selective
+var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+var obs = new MutationObserver(function(mutations, observer){
+	recompute();
+});
+obs.observe(document, {childList:true, subtree:true})
 
 function adjustScroll() {
 	// if link is off-screen, scroll
@@ -175,8 +192,8 @@ function getNextLink(positionFunc, betterLinkEdges) {
 	}
     if (!foundLink) return;
     if ($activeLink) resetLink();
-	$activeLink = foundLink;
-	activeLinkEdges = getLinkEdges($activeLink);
+	$activeLink = $(foundLink);
+	activeLinkEdges = getLinkEdges($activeLink[0]);
 	originalBackgroundColour = getOriginalBackgroundColour();
 	highlightLink()
 	adjustScroll();
