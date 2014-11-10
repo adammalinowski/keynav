@@ -37,8 +37,8 @@ var $activeLink = undefined;
 var activeLinkEdges = undefined;
 var originalBackgroundColour = undefined;
 
-function getOriginalBackgroundColour() {
-	return ($activeLink.css('background-color') || 'inherit');
+function updateOriginalBackgroundColour() {
+	originalBackgroundColour = ($activeLink.css('background-color') || 'inherit');
 }
 
 function highlightLink() {
@@ -51,43 +51,37 @@ function resetLink(){
 	$activeLink.css('outline', 'none');
 }
 
-var pageYOffset = window.pageYOffset;
-var pageXOffset = window.pageXOffset;
-function getPageOffsets() {
-	pageYOffset = window.pageYOffset;
-	pageXOffset = window.pageXOffset;
-}
 
-function getLinkEdges(link) {
-	var rect = link.getBoundingClientRect();
-	return {
-		'top': rect.top + pageYOffset,
-		'bottom': rect.bottom + pageYOffset,
-		'left': rect.left + pageXOffset,
-		'right': rect.right + pageXOffset
+function updateActiveLinkEdges(link) {
+	var rect = $activeLink[0].getBoundingClientRect()
+	activeLinkEdges = {
+		'top': rect.top + window.pageYOffset,
+		'bottom': rect.bottom + window.pageYOffset,
+		'left': rect.left + window.pageXOffset,
+		'right': rect.right + window.pageXOffset
 	}
-}
-
-function getActiveLinkEdges(link) {
-	getPageOffsets();
-	return getLinkEdges($activeLink[0]);
 }
 
 // onload, pre-compute all link edges
 var linkIndexToEdges, linkIndexToLinks;
 var computing = false;
+var pageYOffset = window.pageYOffset;
+var pagexOffset = window.pageXOffset;
 function computeLinks() {
 	if (computing) return;  // do not recompute if already underway
 	start = performance.now()
 	computing = true;
+	// as an optimization, do not calculate correct position of links at this point,
+	// (i.e. add scroll offsets) instead subtract offsets when doing getNextLink
+	pageYOffset = window.pageYOffset;
+	pagexOffset = window.pageXOffset;
 	linkIndexToEdges = []
 	linkIndexToLinks = []
 	var links = document.getElementsByTagName('a');
 	console.log('found ' + links.length)
-	getPageOffsets();
 	for(var i = 0, l = links.length; i < l; i++) {
 		linkIndexToLinks.push(links[i]);
-		linkIndexToEdges.push(getLinkEdges(links[i]));
+		linkIndexToEdges.push(links[i].getBoundingClientRect());
 	}
 	computing = false;
 	end = performance.now()
@@ -117,7 +111,7 @@ function getWindowEdges() {
 
 function recomputeLinks() {
 	computeLinks();
-	if ($activeLink) activeLinkEdges = getActiveLinkEdges();
+	if ($activeLink) updateActiveLinkEdges();
 }
 
 // recompute when window changes
@@ -198,6 +192,15 @@ function getNextLink(positionFunc, betterLinkEdges) {
 		var edges = activeLinkEdges;   // we want to check positionFunc against the active link edges
 	}
 
+	// optimization: instead of calculating actual link position for all links on the page
+	// subtract from edges of thing we are comparing to
+	edges = {
+		'top': edges.top - pageYOffset,
+		'bottom': edges.bottom - pageYOffset,
+		'left': edges.left - pageXOffset,
+		'right': edges.right - pageXOffset
+	}
+
 	// loop through all links on the page, finding those with appropriate position
 	// (e.g. for shift-down, should be below active link)
 	var foundLink = undefined;
@@ -219,12 +222,19 @@ function getNextLink(positionFunc, betterLinkEdges) {
     if (!foundLink) return;
     if ($activeLink) resetLink();
 	$activeLink = $(foundLink);
-	activeLinkEdges = getActiveLinkEdges();
-	originalBackgroundColour = getOriginalBackgroundColour();
+	updateActiveLinkEdges();
+	updateOriginalBackgroundColour();
 	highlightLink()
 	adjustScroll();
 }
 
+// note delay is needed to avoid active link highlight disappearing when moving holding down movement key
+var delaying = false;
+function getNextLinkDelay(positionFunc, betterLinkEdges) {
+       if (delaying) return false
+       delaying = true;
+       setTimeout(function() { getNextLink(positionFunc, betterLinkEdges); delaying = false; }, 10)
+}
 
 function getNextLinkUp() {
 	// edges.top += 1;
@@ -237,7 +247,7 @@ function getNextLinkUp() {
      	return candidateLink.top > bestLink.top;
  	}
 
- 	return getNextLink(positionFunc, betterLinkEdges);
+ 	return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 
@@ -252,12 +262,11 @@ function getNextLinkDown() {
      	return candidateLink.top < bestLink.top;
  	}
 
-    return getNextLink(positionFunc, betterLinkEdges);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 
 function getNextLinkRight() {
-
 	// edges.right -= 1;
 
     var positionFunc = function(edges, foundEdges) {
@@ -268,7 +277,7 @@ function getNextLinkRight() {
     	return candidateLink.left < bestLink.left;
     }
 
-    return getNextLink(positionFunc, betterLinkEdges);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 function getNextLinkLeft() {
@@ -283,7 +292,7 @@ function getNextLinkLeft() {
     	return candidateLink.left > bestLink.left;
     }
 
-    return getNextLink(positionFunc, betterLinkEdges);
+    return getNextLinkDelay(positionFunc, betterLinkEdges);
 }
 
 function getActiveLinkUrl() {
@@ -298,8 +307,10 @@ $(window).bind('keydown', function(e){
 	}
 
 	if (e.which == 27) {  // escape to deactivate
-		resetLink();
-		$activeLink = undefined;
+		if ($activeLink) {
+			resetLink();
+			$activeLink = undefined;
+		}
 		e.preventDefault();
 	}
 
