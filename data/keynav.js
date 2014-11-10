@@ -23,6 +23,8 @@ start with whatever is simplest, and see what happens. this is the hard part. fi
 todo
 - handling for links that wrap onto two lines
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
+  - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
+    css outline, and thus fails if the link has overflow:hidden. box-shadow has same issue.
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
   - in practice DOM is almost always left->right...
@@ -37,19 +39,21 @@ $(document).ready(function() {
 var $activeLink = undefined;
 var activeLinkEdges = undefined;
 var originalBackgroundColour = undefined;
+var originalOutline = undefined;
 
 function updateOriginalBackgroundColour() {
 	originalBackgroundColour = ($activeLink.css('background-color') || 'inherit');
+	originalOutline = ($activeLink.css('outline') || 'none');
 }
 
 function highlightLink() {
-	$activeLink.css('background-color', 'red');
-	$activeLink.css('outline', '1px solid red');
+	$activeLink.css('background-color', '#5B9DD9');
+	$activeLink.css('outline', '2px solid #5B9DD9');
 }
 
 function resetLink(){
 	$activeLink.css('background-color', originalBackgroundColour);
-	$activeLink.css('outline', 'none');
+	$activeLink.css('outline', originalOutline);
 }
 
 
