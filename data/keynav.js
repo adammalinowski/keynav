@@ -22,9 +22,10 @@ start with whatever is simplest, and see what happens. this is the hard part. fi
 
 todo
 - handling for links that wrap onto two lines
-- make highlighting use border/outline, but in a way that works with overflow: hidden
+- make highlighting use border/outline, but in a way that works with overflow: hidden?
 - redo pixel adjustment for adjacent links
 - secondarily sort by leftness after sorting vertical
+  - in practice DOM is almost always left->right...
 - somehow make enter work for elements that aren't real links but expect mouse
   - note looks like you can't just trigger because content script cannot trigger page script
     https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
@@ -162,7 +163,7 @@ function adjustScroll() {
 	}
 }
 
-function getNextLink(positionFunc, betterLinkEdges) {
+function getNextLink(positionFunc, betterLinkEdges, direction) {
 
 	if (domChanged) {
 		recomputeLinks();
@@ -173,8 +174,7 @@ function getNextLink(positionFunc, betterLinkEdges) {
 		var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
 	}
 
-	// if no active link, or link is off-screen, find top-left visible link
-	// or actually should probably be dependent on direction key...
+	// if no active link, or link is off-screen, find link to activate
 	if (!$activeLink || !linkVisible) {
 
 
@@ -182,10 +182,16 @@ function getNextLink(positionFunc, betterLinkEdges) {
 			return edges.top < foundEdges.top && edges.left < foundEdges.left && edges.bottom > foundEdges.bottom && edges.right > foundEdges.left;
 	 	}
 
-	 	var betterLinkEdges = function(candidateLink, bestLink){  // want topmost
-	 		// todo leftmost
-	     	return candidateLink.top < bestLink.top;
-	 	}
+	 	// decide which link to select. DOM order tends to find leftmost
+	 	if (direction == 'up') {
+		 	var betterLinkEdges = function(candidateLink, bestLink){  // want top-most
+		     	return candidateLink.top > bestLink.top;
+		 	}
+		 } else {
+		 	var betterLinkEdges = function(candidateLink, bestLink){  // want bottom-most
+		     	return candidateLink.top < bestLink.top;
+		 	}
+		 }
 
 		var edges = windowEdges;  // we want to check positionFunc against the window edges
 	} else {
@@ -230,10 +236,10 @@ function getNextLink(positionFunc, betterLinkEdges) {
 
 // note delay is needed to avoid active link highlight disappearing when moving holding down movement key
 var delaying = false;
-function getNextLinkDelay(positionFunc, betterLinkEdges) {
+function getNextLinkDelay(positionFunc, betterLinkEdges, direction) {
        if (delaying) return false
        delaying = true;
-       setTimeout(function() { getNextLink(positionFunc, betterLinkEdges); delaying = false; }, 10)
+       setTimeout(function() { getNextLink(positionFunc, betterLinkEdges, direction); delaying = false; }, 10)
 }
 
 function getNextLinkUp() {
@@ -247,7 +253,7 @@ function getNextLinkUp() {
      	return candidateLink.top > bestLink.top;
  	}
 
- 	return getNextLinkDelay(positionFunc, betterLinkEdges);
+ 	return getNextLinkDelay(positionFunc, betterLinkEdges, 'up');
 }
 
 
