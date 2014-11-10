@@ -51,14 +51,26 @@ function resetLink(){
 	$activeLink.css('outline', 'none');
 }
 
+var pageYOffset = window.pageYOffset;
+var pageXOffset = window.pageXOffset;
+function getPageOffsets() {
+	pageYOffset = window.pageYOffset;
+	pageXOffset = window.pageXOffset;
+}
+
 function getLinkEdges(link) {
 	var rect = link.getBoundingClientRect();
 	return {
-		'top': rect.top + window.pageYOffset,
-		'bottom': rect.bottom + window.pageYOffset,
-		'left': rect.left + window.pageXOffset,
-		'right': rect.right + window.pageXOffset
+		'top': rect.top + pageYOffset,
+		'bottom': rect.bottom + pageYOffset,
+		'left': rect.left + pageXOffset,
+		'right': rect.right + pageXOffset
 	}
+}
+
+function getActiveLinkEdges(link) {
+	getPageOffsets();
+	return getLinkEdges($activeLink[0]);
 }
 
 // onload, pre-compute all link edges
@@ -70,10 +82,13 @@ function computeLinks() {
 	computing = true;
 	linkIndexToEdges = []
 	linkIndexToLinks = []
-	$('a').map(function(i){
-		linkIndexToLinks.push(this);
-		linkIndexToEdges.push(getLinkEdges(this));
-	});
+	var links = document.getElementsByTagName('a');
+	console.log('found ' + links.length)
+	getPageOffsets();
+	for(var i = 0, l = links.length; i < l; i++) {
+		linkIndexToLinks.push(links[i]);
+		linkIndexToEdges.push(getLinkEdges(links[i]));
+	}
 	computing = false;
 	end = performance.now()
 	console.log('done in ' + (end-start))
@@ -102,7 +117,7 @@ function getWindowEdges() {
 
 function recomputeLinks() {
 	computeLinks();
-	if ($activeLink) activeLinkEdges = getLinkEdges($activeLink[0]);
+	if ($activeLink) activeLinkEdges = getActiveLinkEdges();
 }
 
 // recompute when window changes
@@ -204,18 +219,12 @@ function getNextLink(positionFunc, betterLinkEdges) {
     if (!foundLink) return;
     if ($activeLink) resetLink();
 	$activeLink = $(foundLink);
-	activeLinkEdges = getLinkEdges($activeLink[0]);
+	activeLinkEdges = getActiveLinkEdges();
 	originalBackgroundColour = getOriginalBackgroundColour();
 	highlightLink()
 	adjustScroll();
 }
 
-var delaying = false;
-function getNextLinkDelay(positionFunc, betterLinkEdges) {
-	if (delaying) return false
-	delaying = true;
-	setTimeout(function() { getNextLink(positionFunc, betterLinkEdges); delaying = false; }, 10)
-}
 
 function getNextLinkUp() {
 	// edges.top += 1;
@@ -228,7 +237,7 @@ function getNextLinkUp() {
      	return candidateLink.top > bestLink.top;
  	}
 
- 	return getNextLinkDelay(positionFunc, betterLinkEdges);
+ 	return getNextLink(positionFunc, betterLinkEdges);
 }
 
 
@@ -243,7 +252,7 @@ function getNextLinkDown() {
      	return candidateLink.top < bestLink.top;
  	}
 
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
+    return getNextLink(positionFunc, betterLinkEdges);
 }
 
 
@@ -259,7 +268,7 @@ function getNextLinkRight() {
     	return candidateLink.left < bestLink.left;
     }
 
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
+    return getNextLink(positionFunc, betterLinkEdges);
 }
 
 function getNextLinkLeft() {
@@ -274,7 +283,7 @@ function getNextLinkLeft() {
     	return candidateLink.left > bestLink.left;
     }
 
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
+    return getNextLink(positionFunc, betterLinkEdges);
 }
 
 function getActiveLinkUrl() {
