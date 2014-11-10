@@ -21,7 +21,6 @@ but you still need to be able to move around A-B-C at will...
 start with whatever is simplest, and see what happens. this is the hard part. first get everything else working
 
 todo
-- update indexes at some point for when links change with js (moved/added/deleted) (e.g. reddit with res)
 - handling for links that wrap onto two lines
 - make highlighting use border/outline, but in a way that works with overflow: hidden
 - redo pixel adjustment for adjacent links
@@ -29,7 +28,6 @@ todo
 - somehow make enter work for elements that aren't real links but expect mouse
   - note looks like you can't just trigger because content script cannot trigger page script
     https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
-- handling for holding down shift-down overtaking scroll?  (i.e. reddit with res)
 
 */
 
@@ -102,28 +100,37 @@ function getWindowEdges() {
 		}
 }
 
-function recompute() {
+function recomputeLinks() {
 	computeLinks();
 	if ($activeLink) activeLinkEdges = getLinkEdges($activeLink[0]);
 }
 
-// recompute when window changes size or DOM changes
+// recompute when window changes
 $(window).resize(function(){
-	recompute();
+	recomputeLinks();
 })
-// note, this fires when link changes, needs to be more selective
+
+// when DOM changes, set flag to recompute on next link change - do not recompute immediately to avoid
+// wasteful recomputing when site make lots of DOM changes
+var domChanged = false;
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
 var obs = new MutationObserver(function(mutations, observer){
-	recompute();
+	mutations.every(function(mutation) {
+		// hacky bugfix - some sites do a weird thing where one text node changes to the same thing on every scroll...
+	    if ((mutation.addedNodes.length && mutation.addedNodes.item(0).nodeType != 3) || (mutation.removedNodes.length && mutation.removedNodes.item(0).nodeType != 3)) {
+	    	domChanged = true;
+	    	return false;
+	    }
+	});
+
 });
-obs.observe(document, {childList:true, subtree:true})
+obs.observe(document, {childList: true, subtree: true})
+
 
 function adjustScroll() {
 	// if link is off-screen, scroll
 
 	var windowEdges = getWindowEdges();
-	// console.log(windowEdges)
-	// console.log(activeLinkEdges)
 
 	// if link is beyond bottom
 	if (activeLinkEdges.bottom > windowEdges.bottom) {
@@ -148,6 +155,10 @@ function adjustScroll() {
 
 function getNextLink(positionFunc, betterLinkEdges) {
 
+	if (domChanged) {
+		recomputeLinks();
+		domChanged = false;
+	}
 	var windowEdges = getWindowEdges()
 	if ($activeLink) {
 		var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
