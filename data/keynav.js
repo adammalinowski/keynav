@@ -1,33 +1,11 @@
 /*
 
-
-when you move horizontally, you want to move in current plane
-- and failing that wrap around, or possibly just don't move
-
-when you move vertically, is a bit more complicated.
-  - guess you want to go to the next link beneth it's bottom-left position. or maybe its middle.
-- guess you want to go in that plane, mostly? i.e. not stray too much horizontally
-
-but you still need to be able to move around A-B-C at will...
-
-     A
-
-
-										B
-
-
-     C
-
-start with whatever is simplest, and see what happens. this is the hard part. first get everything else working
-
 todo
-- handling for links that wrap onto two lines
+- todo deactivate keyboard when focused in contenteditable
+- handling for links that wrap onto two lines?
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
   - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
     css outline, and thus fails if the link has overflow:hidden. box-shadow has same issue.
-- redo pixel adjustment for adjacent links
-- secondarily sort by leftness after sorting vertical
-  - in practice DOM is almost always left->right...
 - somehow make enter work for elements that aren't real links but expect mouse
   - note looks like you can't just trigger because content script cannot trigger page script
     https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
@@ -42,29 +20,28 @@ var originalBackgroundColour = undefined;
 var originalOutline = undefined;
 
 function updateOriginalBackgroundColour() {
-	originalBackgroundColour = ($activeLink.css('background-color') || 'inherit');
-	originalOutline = ($activeLink.css('outline') || 'none');
+    originalBackgroundColour = ($activeLink.css('background-color') || 'inherit');
+    originalOutline = ($activeLink.css('outline') || 'none');
 }
 
 function highlightLink() {
-	$activeLink.css('background-color', '#5B9DD9');
-	$activeLink.css('outline', '2px solid #5B9DD9');
+    $activeLink.css('background-color', '#5B9DD9');
+    $activeLink.css('outline', '2px solid #5B9DD9');
 }
 
 function resetLink(){
-	$activeLink.css('background-color', originalBackgroundColour);
-	$activeLink.css('outline', originalOutline);
+    $activeLink.css('background-color', originalBackgroundColour);
+    $activeLink.css('outline', originalOutline);
 }
 
-
 function updateActiveLinkEdges(link) {
-	var rect = $activeLink[0].getBoundingClientRect()
-	activeLinkEdges = {
-		'top': rect.top + window.pageYOffset,
-		'bottom': rect.bottom + window.pageYOffset,
-		'left': rect.left + window.pageXOffset,
-		'right': rect.right + window.pageXOffset
-	}
+    var rect = $activeLink[0].getBoundingClientRect()
+    activeLinkEdges = {
+        'top': rect.top + window.pageYOffset,
+        'bottom': rect.bottom + window.pageYOffset,
+        'left': rect.left + window.pageXOffset,
+        'right': rect.right + window.pageXOffset
+    }
 }
 
 // onload, pre-compute all link edges
@@ -73,292 +50,306 @@ var computing = false;
 var pageYOffset = window.pageYOffset;
 var pagexOffset = window.pageXOffset;
 function computeLinks() {
-	if (computing) return;  // do not recompute if already underway
-	start = performance.now()
-	computing = true;
-	// as an optimization, do not calculate correct position of links at this point,
-	// (i.e. add scroll offsets) instead subtract offsets when doing getNextLink
-	pageYOffset = window.pageYOffset;
-	pagexOffset = window.pageXOffset;
-	linkIndexToEdges = []
-	linkIndexToLinks = []
-	var links = document.getElementsByTagName('a');
-	console.log('found ' + links.length)
-	for(var i = 0, l = links.length; i < l; i++) {
-		linkIndexToLinks.push(links[i]);
-		linkIndexToEdges.push(links[i].getBoundingClientRect());
-	}
-	computing = false;
-	end = performance.now()
-	console.log('done in ' + (end-start))
+    if (computing) return;  // do not recompute if already underway
+    start = performance.now()
+    computing = true;
+    // as an optimization, do not calculate correct position of links at this point,
+    // (i.e. add scroll offsets) instead subtract offsets when doing getNextLink
+    pageYOffset = window.pageYOffset;
+    pagexOffset = window.pageXOffset;
+    linkIndexToEdges = []
+    linkIndexToLinks = []
+    var links = document.getElementsByTagName('a');
+    console.log('found ' + links.length)
+    for(var i = 0, l = links.length; i < l; i++) {
+        var link = links[i];
+        if (!(link.offsetWidth > 0 && link.offsetHeight > 0)) continue;  // must be visible
+        linkIndexToLinks.push(link);
+        linkIndexToEdges.push(link.getBoundingClientRect());
+    }
+    computing = false;
+    end = performance.now()
+    console.log('done in ' + (end-start))
 }
 computeLinks();
 
-function overlapVertical(edges, foundEdges) {
-	return ((edges.left < foundEdges.right && edges.right > foundEdges.left) ||
-			(edges.right > foundEdges.left && edges.left < foundEdges.right));
-}
-
-function overlapHorizontal(edges, foundEdges) {
-	return ((edges.top < foundEdges.bottom && edges.bottom > foundEdges.top) ||
-			(edges.bottom > foundEdges.top && edges.top < foundEdges.bottom));
-}
-
 function getWindowEdges() {
-	// do not use jquery for viewport dimensions, returns document dimensions if no doctype
-	return {
-			'top': $(window).scrollTop(),
-			'bottom': $(window).scrollTop() + window.innerHeight,
-			'left': $(window).scrollLeft(),
-			'right': $(window).scrollLeft() + window.innerWidth
-		}
+    // do not use jquery for viewport dimensions, returns document dimensions if no doctype
+    return {
+            'top': $(window).scrollTop(),
+            'bottom': $(window).scrollTop() + window.innerHeight,
+            'left': $(window).scrollLeft(),
+            'right': $(window).scrollLeft() + window.innerWidth
+        }
 }
 
 function recomputeLinks() {
-	computeLinks();
-	if ($activeLink) updateActiveLinkEdges();
+    computeLinks();
+    if ($activeLink) updateActiveLinkEdges();
 }
 
 // recompute when window changes
 $(window).resize(function(){
-	recomputeLinks();
+    recomputeLinks();
 })
 
 // when DOM changes, set flag to recompute on next link change - do not recompute immediately to avoid
-// wasteful recomputing when site make lots of DOM changes
+// wasteful recomputing when script make lots of successive DOM changes
 var domChanged = false;
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
 var obs = new MutationObserver(function(mutations, observer){
-	mutations.every(function(mutation) {
-		// hacky bugfix - some sites do a weird thing where one text node changes to the same thing on every scroll...
-	    if ((mutation.addedNodes.length && mutation.addedNodes.item(0).nodeType != 3) || (mutation.removedNodes.length && mutation.removedNodes.item(0).nodeType != 3)) {
-	    	domChanged = true;
-	    	return false;
-	    }
-	});
+    mutations.every(function(mutation) {
+        // hacky bugfix - some sites do a weird thing where one text node changes to the same thing on every scroll...
+        if ((mutation.addedNodes.length == 1 && mutation.addedNodes.item(0).nodeType == 3)
+            || (mutation.removedNodes.length == 1 && mutation.removedNodes.item(0).nodeType == 3)) {
+            return false;
+        }
+        domChanged = true;
+        return false;
+    });
 
 });
 obs.observe(document, {childList: true, subtree: true})
 
-
 function adjustScroll() {
-	// if link is off-screen, scroll
+    // if link is off-screen, scroll
 
-	var windowEdges = getWindowEdges();
+    var windowEdges = getWindowEdges();
 
-	// if link is beyond bottom
-	if (activeLinkEdges.bottom > windowEdges.bottom) {
-		$(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 10);
-	}
+    // if link is beyond bottom
+    if (activeLinkEdges.bottom > windowEdges.bottom) {
+        $(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 10);
+    }
 
-	// if link is beyond top
-	if (activeLinkEdges.top < windowEdges.top) {
-		$(window).scrollTop(activeLinkEdges.top - 10);
-	}
+    // if link is beyond top
+    if (activeLinkEdges.top < windowEdges.top) {
+        $(window).scrollTop(activeLinkEdges.top - 10);
+    }
 
-	// if link is beyond left
-	if (activeLinkEdges.left < windowEdges.left) {
-		$(window).scrollLeft(activeLinkEdges.left - 50);
-	}
+    // if link is beyond left
+    if (activeLinkEdges.left < windowEdges.left) {
+        $(window).scrollLeft(activeLinkEdges.left - 50);
+    }
 
-	// if link is beyond right
-	if (activeLinkEdges.right > windowEdges.right) {
-		$(window).scrollLeft(activeLinkEdges.left - 50);
-	}
+    // if link is beyond right
+    if (activeLinkEdges.right > windowEdges.right) {
+        $(window).scrollLeft(activeLinkEdges.left - 50);
+    }
 }
 
-function getNextLink(positionFunc, betterLinkEdges, direction) {
+function hozOverlap(activeEdges, otherEdges) {
+    // if active link left-most point is between left & right of other link
+    if (activeEdges.left > otherEdges.left && activeEdges.left < otherEdges.right) return true
+    // if active link right-most point is between left & right of other link
+    if (activeEdges.right > otherEdges.left && activeEdges.right < otherEdges.right) return true
+    // if active link completely encompasses other link
+    if (activeEdges.left <= otherEdges.left && activeEdges.right >= otherEdges.right) return true
+    return false
+}
 
-	if (domChanged) {
-		recomputeLinks();
-		domChanged = false;
-	}
-	var windowEdges = getWindowEdges()
-	if ($activeLink) {
-		var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
-	}
+function vertOverlap(activeEdges, otherEdges) {
+    // if active link top-most point is between top & bottom of other link
+    if (activeEdges.top > otherEdges.top && activeEdges.top < otherEdges.bottom) return true
+    // if active link bottom-most point is between top & bottom of other link
+    if (activeEdges.bottom > otherEdges.top && activeEdges.bottom < otherEdges.bottom) return true
+        // if active link completely encompasses other link
+    if (activeEdges.top <= otherEdges.top && activeEdges.bottom >= otherEdges.bottom) return true
+    return false
+}
 
-	// if no active link, or link is off-screen, find link to activate
-	if (!$activeLink || !linkVisible) {
+function hozNearness(activeEdges, otherEdges) {
+    // if there is any overlap: 0; otherwise closest point
+    if (hozOverlap(activeEdges, otherEdges)) {
+        return 0
+    } else if (activeEdges.right < otherEdges.left) {
+        return otherEdges.left - activeEdges.right;
+    } else {
+        return activeEdges.left - otherEdges.right;
+    }
+}
 
+function vertNearness(activeEdges, otherEdges) {
+    // if there is any overlap: 0; otherwise closest point
+    if (vertOverlap(activeEdges, otherEdges)) {
+        return 0
+    } else if (activeEdges.bottom < otherEdges.top) {
+        return otherEdges.top - activeEdges.bottom;
+    } else {
+        return activeEdges.top - otherEdges.bottom;
+    }
+}
 
-	 	var positionFunc = function(edges, foundEdges) {
-			return edges.top < foundEdges.top && edges.left < foundEdges.left && edges.bottom > foundEdges.bottom && edges.right > foundEdges.left;
-	 	}
+function hozDistance(activeEdges, otherEdges) {
+    if (activeEdges.left > otherEdges.right) {
+        return activeEdges.left - otherEdges.right;
+    } else if (activeEdges.right < otherEdges.left) {
+        return otherEdges.left - activeEdges.right;
+    } else {
+        return 0; // overlap - shouldn't happen if pos works...
+    }
+}
 
-	 	// decide which link to select. DOM order tends to find leftmost
-	 	if (direction == 'up') {
-		 	var betterLinkEdges = function(candidateLink, bestLink){  // want top-most
-		     	return candidateLink.top > bestLink.top;
-		 	}
-		 } else {
-		 	var betterLinkEdges = function(candidateLink, bestLink){  // want bottom-most
-		     	return candidateLink.top < bestLink.top;
-		 	}
-		 }
+function vertDistance(activeEdges, otherEdges) {
+    if (activeEdges.top > otherEdges.bottom) {
+        return activeEdges.top - otherEdges.bottom;
+    } else if (activeEdges.bottom < otherEdges.top) {
+        return otherEdges.top - activeEdges.bottom;
+    } else {
+        return 0; // overlap - shouldn't happen if pos works...
+    }
+}
 
-		var edges = windowEdges;  // we want to check positionFunc against the window edges
-	} else {
-		var edges = activeLinkEdges;   // we want to check positionFunc against the active link edges
-	}
+function vertFitness(activeEdges, foundEdges) {
+    return vertDistance(activeEdges, foundEdges) + (hozNearness(activeEdges, foundEdges) * 2.5)
+}
 
-	// optimization: instead of calculating actual link position for all links on the page
-	// subtract from edges of thing we are comparing to
-	edges = {
-		'top': edges.top - pageYOffset,
-		'bottom': edges.bottom - pageYOffset,
-		'left': edges.left - pageXOffset,
-		'right': edges.right - pageXOffset
-	}
+function hozFitness(activeEdges, foundEdges) {
+    return hozDistance(activeEdges, foundEdges) + (vertNearness(activeEdges, foundEdges) * 2.5)
+}
 
-	// loop through all links on the page, finding those with appropriate position
-	// (e.g. for shift-down, should be below active link)
-	var foundLink = undefined;
-	var foundEdges = undefined;
-	for (i = 0; i < linkIndexToEdges.length; ++i) {
-	    if (positionFunc(edges, linkIndexToEdges[i])) {
-	    	if (foundLink) {
-	    		if (betterLinkEdges(linkIndexToEdges[i], foundEdges)) {
-					foundLink = linkIndexToLinks[i];
-					foundEdges = linkIndexToEdges[i];
-				}
-	    	} else {
-	    		foundLink = linkIndexToLinks[i];
-	    		foundEdges = linkIndexToEdges[i];
-	    	}
+function getNextLink(direction) {
 
-	    }
-	}
-    if (!foundLink) return;
+    if (domChanged) {
+        recomputeLinks();
+        domChanged = false;
+    }
+    var windowEdges = getWindowEdges()
+    if ($activeLink) {
+        var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
+    }
+
+    // if no active link, or link is off-screen, find link to activate
+    if (!$activeLink || !linkVisible) {
+        var activeEdges = windowEdges;  // we want to check pos against the window edges
+
+        // fake a 1px high link at top or bottom of screen, make fitness be vertically closest to fake link
+        if (direction == 'up') {
+            activeEdges.top = activeEdges.bottom
+            var fitness = function(activeEdges, foundEdges) { return activeEdges.top - foundEdges.bottom; }
+        } else {
+            activeEdges.bottom = activeEdges.top
+            var fitness = function(activeEdges, foundEdges) { return foundEdges.top - activeEdges.bottom; }
+        }
+    } else {
+        var activeEdges = activeLinkEdges;   // we want to check pos against the active link edges
+    }
+
+    // optimization: instead of calculating actual link position for all links on the page
+    // subtract from edges of thing we are comparing to
+    activeEdges = {
+        'top': activeEdges.top - pageYOffset,
+        'bottom': activeEdges.bottom - pageYOffset,
+        'left': activeEdges.left - pageXOffset,
+        'right': activeEdges.right - pageXOffset
+    }
+
+    // apply pixel-tweaks to allow moving to adjacent link, define pos func to find links in valid position
+    if (direction == 'left') {
+        var pos = function(activeEdges, foundEdges) { return foundEdges.right < activeEdges.left; }
+    } else if (direction == 'right') {
+        activeEdges.right -= 1;
+        var pos = function(activeEdges, foundEdges) { return foundEdges.left > activeEdges.right; }
+    } else if (direction == 'up') {
+        activeEdges.top += 1;
+        var pos = function(activeEdges, foundEdges) { return foundEdges.bottom < activeEdges.top; }
+    } else if (direction == 'down') {
+        activeEdges.bottom -= 1;
+        var pos = function(activeEdges, foundEdges) { return foundEdges.top > activeEdges.bottom; }
+    }
+
+    if (direction == 'up' || direction == 'down') fitness = vertFitness;
+    if (direction == 'left' || direction == 'right') fitness = hozFitness;
+
+    // loop through all links, find those with appropriate position, find best link from those
+    var bestLink = undefined;
+    var bestEdges = undefined;
+    for (i = 0; i < linkIndexToEdges.length; ++i) {
+        var foundEdges = linkIndexToEdges[i]
+        // first check link is in valid position
+        if (!pos(activeEdges, foundEdges)) continue;
+        if (!bestLink) {
+            // if we haven't yet found a link satisfying pos, take the first we find
+            bestLink = linkIndexToLinks[i];
+            bestEdges = foundEdges;
+        // todo: handling for if equal (or very close...)
+        } else if (fitness(activeEdges, foundEdges) < fitness(activeEdges, bestEdges)) {
+            // compare the current best link with the next link
+            // if the found link is better than the best link, replace (lower is better)
+            bestLink = linkIndexToLinks[i];
+            bestEdges = foundEdges;
+        }
+    }
+    if (!bestLink) return;
     if ($activeLink) resetLink();
-	$activeLink = $(foundLink);
-	updateActiveLinkEdges();
-	updateOriginalBackgroundColour();
-	highlightLink()
-	adjustScroll();
+    $activeLink = $(bestLink);
+    updateActiveLinkEdges();
+    updateOriginalBackgroundColour();
+    highlightLink()
+    adjustScroll();
 }
 
-// note delay is needed to avoid active link highlight disappearing when moving holding down movement key
+// note delay is needed to avoid active link highlight disappearing when holding down movement key
 var delaying = false;
-function getNextLinkDelay(positionFunc, betterLinkEdges, direction) {
-       if (delaying) return false
-       delaying = true;
-       setTimeout(function() { getNextLink(positionFunc, betterLinkEdges, direction); delaying = false; }, 10)
-}
-
-function getNextLinkUp() {
-	// edges.top += 1;
-
- 	var positionFunc = function(edges, foundEdges) {
-		return (edges.top > foundEdges.bottom) && overlapVertical(edges, foundEdges);
- 	}
-
- 	var betterLinkEdges = function(candidateLink, bestLink){  // want lowest
-     	return candidateLink.top > bestLink.top;
- 	}
-
- 	return getNextLinkDelay(positionFunc, betterLinkEdges, 'up');
-}
-
-
-function getNextLinkDown() {
-	// edges.bottom -= 1;
-
- 	var positionFunc = function(edges, foundEdges) {
-		return (edges.bottom < foundEdges.top) && overlapVertical(edges, foundEdges);
- 	}
-
- 	var betterLinkEdges = function(candidateLink, bestLink){  // want highest
-     	return candidateLink.top < bestLink.top;
- 	}
-
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
-}
-
-
-function getNextLinkRight() {
-	// edges.right -= 1;
-
-    var positionFunc = function(edges, foundEdges) {
-    	return edges.right < foundEdges.left && overlapHorizontal(edges, foundEdges);
-    }
-
-    var betterLinkEdges = function(candidateLink, bestLink){  // want leftmost
-    	return candidateLink.left < bestLink.left;
-    }
-
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
-}
-
-function getNextLinkLeft() {
-
-	// edges.left += 1;  // not needed
-
-    var positionFunc = function(edges, foundEdges) {
-    	return edges.left > foundEdges.left && overlapHorizontal(edges, foundEdges);
-    }
-
-    var betterLinkEdges = function(candidateLink, bestLink){  // want rightmost
-    	return candidateLink.left > bestLink.left;
-    }
-
-    return getNextLinkDelay(positionFunc, betterLinkEdges);
+function getNextLinkDelay(direction) {
+    if (delaying) return false
+    delaying = true;
+    setTimeout(function() { getNextLink(direction); delaying = false; }, 10)
 }
 
 function getActiveLinkUrl() {
-	return $activeLink.get(0).href
+    return $activeLink.get(0).href
 }
 
 $(window).bind('keydown', function(e){
 
-	// if currently focused in input/textarea, disable keyboard shortcuts
-	if ($("input:focus,textarea:focus").length) {
-		return;
-	}
+    // if currently focused in input/textarea, disable keyboard shortcuts
+    if ($("input:focus,textarea:focus").length) {
+        return;
+    }
 
-	if (e.which == 27) {  // escape to deactivate
-		if ($activeLink) {
-			resetLink();
-			$activeLink = undefined;
-		}
-		e.preventDefault();
-	}
+    if (e.which == 27) {  // escape to deactivate
+        if ($activeLink) {
+            resetLink();
+            $activeLink = undefined;
+        }
+        e.preventDefault();
+    }
 
-	if (e.shiftKey && e.which == 37) {
-		getNextLinkLeft();
-		e.preventDefault();
-	}
+    if (e.shiftKey && e.which == 37) {
+        getNextLinkDelay('left');
+        e.preventDefault();
+    }
 
-	if (e.shiftKey && e.which == 39) {
-		getNextLinkRight();
-		e.preventDefault();
-	}
+    if (e.shiftKey && e.which == 39) {
+        getNextLinkDelay('right');
+        e.preventDefault();
+    }
 
-	if (e.shiftKey && e.which == 38) {
-		getNextLinkUp();
-		e.preventDefault();
-	}
+    if (e.shiftKey && e.which == 38) {
+        getNextLinkDelay('up');
+        e.preventDefault();
+    }
 
-	if (e.shiftKey && e.which == 40) {
-		getNextLinkDown();
-		e.preventDefault();
-	}
+    if (e.shiftKey && e.which == 40) {
+        getNextLinkDelay('down');
+        e.preventDefault();
+    }
 
-	// enter to open link
-	if (e.which == 13) {
-		if ($activeLink) {
-			if (e.shiftKey) {
-				if (e.ctrlKey) {
-					self.port.emit("open-new-background-tab", getActiveLinkUrl());
-				} else {
-					self.port.emit("open-new-tab", getActiveLinkUrl());
-				}
-			} else {
-				self.port.emit("open", getActiveLinkUrl());
-			}
-			e.preventDefault();
-		}
-	}
+    // enter to open link
+    if (e.which == 13) {
+        if ($activeLink) {
+            if (e.shiftKey) {
+                if (e.ctrlKey) {
+                    self.port.emit("open-new-background-tab", getActiveLinkUrl());
+                } else {
+                    self.port.emit("open-new-tab", getActiveLinkUrl());
+                }
+            } else {
+                self.port.emit("open", getActiveLinkUrl());
+            }
+            e.preventDefault();
+        }
+    }
 
 });
 
