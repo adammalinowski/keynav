@@ -236,7 +236,7 @@ function getNextLink(direction) {
 
     // if no active link, or link is off-screen, find link to activate
     if (!$activeLink || !linkVisible) {
-        var activeEdges = simpleCopy(viewportEdges);  // we want to check pos against the window edges
+        var activeEdges = simpleCopy(viewportEdges);  // we want to check validPos against the window edges
 
         // fake a 1px high link at top or bottom of screen, make fitness be vertically closest to fake link
         if (direction == 'up') {
@@ -247,7 +247,7 @@ function getNextLink(direction) {
             var fitness = function(activeEdges, foundEdges) { return foundEdges.top - activeEdges.bottom; }
         }
     } else {
-        var activeEdges = activeLinkEdges;   // we want to check pos against the active link edges
+        var activeEdges = activeLinkEdges;   // we want to check validPos against the active link edges
     }
 
     // optimization: instead of calculating actual link position for all links on the page
@@ -265,18 +265,18 @@ function getNextLink(direction) {
         'right': viewportEdges.right - pageXOffset
     }
 
-    // apply pixel-tweaks to allow moving to adjacent link, define pos func to find links in valid position
+    // apply pixel-tweaks to allow moving to adjacent link, define validPos func to find links in valid position
     if (direction == 'left') {
-        var pos = function(activeEdges, foundEdges) { return foundEdges.right < activeEdges.left; }
+        var validPos = function(activeEdges, foundEdges) { return foundEdges.right < activeEdges.left; }
     } else if (direction == 'right') {
         activeEdges.right -= 1;
-        var pos = function(activeEdges, foundEdges) { return foundEdges.left > activeEdges.right; }
+        var validPos = function(activeEdges, foundEdges) { return foundEdges.left > activeEdges.right; }
     } else if (direction == 'up') {
         activeEdges.top += 1;
-        var pos = function(activeEdges, foundEdges) { return foundEdges.bottom < activeEdges.top; }
+        var validPos = function(activeEdges, foundEdges) { return foundEdges.bottom < activeEdges.top; }
     } else if (direction == 'down') {
         activeEdges.bottom -= 1;
-        var pos = function(activeEdges, foundEdges) { return foundEdges.top > activeEdges.bottom; }
+        var validPos = function(activeEdges, foundEdges) { return foundEdges.top > activeEdges.bottom; }
     }
 
     if (direction == 'up' || direction == 'down') fitness = vertFitness;
@@ -288,11 +288,11 @@ function getNextLink(direction) {
     for (i = 0; i < linkIndexToEdges.length; ++i) {
         var foundEdges = linkIndexToEdges[i]
         // first check link is in valid position
-        if (!pos(activeEdges, foundEdges)) continue;
+        if (!validPos(activeEdges, foundEdges)) continue;
         // check if link isn't too far off screen
         if (tooFarOffscreen(offsetViewportEdges, foundEdges)) continue;
         if (!bestLink) {
-            // if we haven't yet found a link satisfying pos, take the first we find
+            // if we haven't yet found a link satisfying validPos, take the first we find
             bestLink = linkIndexToLinks[i];
             bestEdges = foundEdges;
         // todo: handling for if equal (or very close...)
