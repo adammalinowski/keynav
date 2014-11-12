@@ -1,7 +1,6 @@
 /*
 
 todo
-- deactivate keyboard when focused in contenteditable
 - handling for links that wrap onto two lines?
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
   - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
@@ -328,11 +327,10 @@ function getActiveLinkUrl() {
 $(window).bind('keydown', function(e){
 
     // if currently focused in input/textarea, disable keyboard shortcuts
-    if ($("input:focus,textarea:focus").length) {
-        return;
+    var focusNode = document.activeElement;
+    if (focusNode.nodeName == "INPUT" || focusNode.nodeName == "TEXTAREA" || focusNode.getAttribute("contenteditable") == 'true') {
+        return
     }
-
-    var focused = document.activeElement;
 
     if (e.which == 27) {  // escape to deactivate
         if ($activeLink) {
