@@ -2,6 +2,8 @@
 
 todo
 - new bug: sometimes randomly jumps up/down a lot (in reddit)
+- could give higher weighting to fully-overlapped links for reddit browsing - negative?
+  - aiming to solve the non-expected behaviour of jumping-left to thumbnail when moving up
 - handling for links that wrap onto two lines?
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
   - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
@@ -60,7 +62,7 @@ function computeLinks() {
     linkIndexToEdges = []
     linkIndexToLinks = []
     var links = document.getElementsByTagName('a');
-    console.log('found ' + links.length)
+    // console.log('found ' + links.length)
     for(var i = 0, l = links.length; i < l; i++) {
         var link = links[i];
         if (!(link.offsetWidth > 0 && link.offsetHeight > 0)) continue;  // must be visible
@@ -69,7 +71,7 @@ function computeLinks() {
     }
     computing = false;
     end = performance.now()
-    console.log('done in ' + (end-start))
+    // console.log('done in ' + (end-start))
 }
 computeLinks();
 
@@ -256,7 +258,6 @@ function getNextLink(direction) {
                 activeEdges.left = activeEdges.right;
             }
         }
-        console.log(activeEdges)
     } else {
         var tooFar = 250;
         var activeEdges = activeLinkEdges;   // we want to check validPos against the active link edges
@@ -304,8 +305,6 @@ function getNextLink(direction) {
         if (!validPos(activeEdges, foundEdges)) continue;
         // check if link isn't too far off screen
         if (tooFarOffscreen(offsetViewportEdges, foundEdges, tooFar)) continue;
-        console.log(linkIndexToLinks[i].text)
-        console.log(simpleCopy(foundEdges))
         if (!bestLink) {
             // if we haven't yet found a link satisfying validPos, take the first we find
             bestLink = linkIndexToLinks[i];
@@ -318,8 +317,7 @@ function getNextLink(direction) {
             bestEdges = foundEdges;
         }
     }
-    console.log(bestLink)
-    console.log('found in ' + (performance.now() - start))
+    // console.log('found in ' + (performance.now() - start))
     if (!bestLink) return;
     if ($activeLink) resetLink();
     $activeLink = $(bestLink);
@@ -382,12 +380,24 @@ $(window).bind('keydown', function(e){
         if ($activeLink) {
             if (e.shiftKey) {
                 if (e.ctrlKey) {
-                    self.port.emit("open-new-background-tab", getActiveLinkUrl());
+                    if (chrome) {
+                        chrome.runtime.sendMessage({"openNewBackgroundTab": getActiveLinkUrl()});
+                    } else {
+                        self.port.emit("open-new-background-tab", getActiveLinkUrl());
+                    }
                 } else {
-                    self.port.emit("open-new-tab", getActiveLinkUrl());
+                    if (chrome) {
+                        chrome.runtime.sendMessage({"openNewTab": getActiveLinkUrl()});
+                    } else {
+                        self.port.emit("open-new-tab", getActiveLinkUrl());
+                    }
                 }
             } else {
-                self.port.emit("open", getActiveLinkUrl());
+                if (chrome) {
+                    chrome.runtime.sendMessage({"open": getActiveLinkUrl()});
+                } else {
+                    self.port.emit("open", getActiveLinkUrl());
+                }
             }
             e.preventDefault();
         }

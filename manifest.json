@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+
+  "name": "KeyNav",
+  "description": "Keyboard link navigation",
+  "author": "Adam Malinowski",
+  "version": "0.1",
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["./data/jquery-2.1.1.min.js", "./data/keynav.js"]
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 {
-  "name": "keynav",
-  "title": "keynav",
+  "name": "KeyNav",
+  "title": "KeyNav",
   "id": "jid1-ZAs3HKD8PfNbXQ",
-  "description": "a basic add-on",
-  "author": "",
+  "description": "Keyboard link navigation",
+  "author": "Adam Malinowski",
   "license": "MPL 2.0",
   "version": "0.1"
 }
