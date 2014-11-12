@@ -1,0 +1,13 @@
+KeyNav 0.1
+
+Allows navigating around link on a page with the keyboard
+
+To move to a link, press `shift-[direction]`, e.g. to highlight the next link
+down press `shift-down`.
+
+To open a highlighted link in the current tab, press `enter`. To open in new tab
+press `shift-enter`. To open in background tab press `control-shift-enter`.
+
+To deactivate highlighting, press `escape`.
+
+Happy surfing!
