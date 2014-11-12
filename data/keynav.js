@@ -1,6 +1,7 @@
 /*
 
 todo
+- new bug: sometimes randomly jumps up/down a lot (in reddit)
 - handling for links that wrap onto two lines?
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
   - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
@@ -184,7 +185,7 @@ function hozDistance(activeEdges, otherEdges) {
     } else if (activeEdges.right < otherEdges.left) {
         return otherEdges.left - activeEdges.right;
     } else {
-        return 0; // overlap - shouldn't happen if pos works...
+        throw 'invalid hozDistance'
     }
 }
 
@@ -194,7 +195,7 @@ function vertDistance(activeEdges, otherEdges) {
     } else if (activeEdges.bottom < otherEdges.top) {
         return otherEdges.top - activeEdges.bottom;
     } else {
-        return 0; // overlap - shouldn't happen if pos works...
+        throw 'invalid vertDistance'
     }
 }
 
@@ -206,8 +207,7 @@ function hozFitness(activeEdges, foundEdges) {
     return hozDistance(activeEdges, foundEdges) + (vertNearness(activeEdges, foundEdges) * 2.5)
 }
 
-function tooFarOffscreen(offsetViewportEdges, foundEdges) {
-    var tooFar = 250;
+function tooFarOffscreen(offsetViewportEdges, foundEdges, tooFar) {
     if (foundEdges.bottom < offsetViewportEdges.top - tooFar) return true;
     if (foundEdges.top > offsetViewportEdges.bottom + tooFar) return true;
     if (foundEdges.left > offsetViewportEdges.right + tooFar) return true;
@@ -238,15 +238,27 @@ function getNextLink(direction) {
     if (!$activeLink || !linkVisible) {
         var activeEdges = simpleCopy(viewportEdges);  // we want to check validPos against the window edges
 
-        // fake a 1px high link at top or bottom of screen, make fitness be vertically closest to fake link
+        var tooFar = 0;  // do not find any links off-screen
         if (direction == 'up') {
-            activeEdges.top = activeEdges.bottom
-            var fitness = function(activeEdges, foundEdges) { return activeEdges.top - foundEdges.bottom; }
+            // imitate a 0-size link at bottom-left-middle of screen
+            activeEdges.top = activeEdges.bottom;
+            var middle = (activeEdges.right - activeEdges.left) / 4;
+            activeEdges.left = middle;
+            activeEdges.right = middle;
         } else {
-            activeEdges.bottom = activeEdges.top
-            var fitness = function(activeEdges, foundEdges) { return foundEdges.top - activeEdges.bottom; }
+            // imitate a 0-size link at appropriate corner of screen
+            activeEdges.bottom = activeEdges.top;
+            if (direction == 'down' || direction == 'right') {
+                // start at top-left, find right
+                activeEdges.right = activeEdges.left;
+            } else if (direction == 'left') {
+                // start at top-right, find left
+                activeEdges.left = activeEdges.right;
+            }
         }
+        console.log(activeEdges)
     } else {
+        var tooFar = 250;
         var activeEdges = activeLinkEdges;   // we want to check validPos against the active link edges
     }
 
@@ -285,12 +297,15 @@ function getNextLink(direction) {
     // loop through all links, find those with appropriate position, find best link from those
     var bestLink = undefined;
     var bestEdges = undefined;
+    start = performance.now()
     for (i = 0; i < linkIndexToEdges.length; ++i) {
         var foundEdges = linkIndexToEdges[i]
         // first check link is in valid position
         if (!validPos(activeEdges, foundEdges)) continue;
         // check if link isn't too far off screen
-        if (tooFarOffscreen(offsetViewportEdges, foundEdges)) continue;
+        if (tooFarOffscreen(offsetViewportEdges, foundEdges, tooFar)) continue;
+        console.log(linkIndexToLinks[i].text)
+        console.log(simpleCopy(foundEdges))
         if (!bestLink) {
             // if we haven't yet found a link satisfying validPos, take the first we find
             bestLink = linkIndexToLinks[i];
@@ -303,6 +318,8 @@ function getNextLink(direction) {
             bestEdges = foundEdges;
         }
     }
+    console.log(bestLink)
+    console.log('found in ' + (performance.now() - start))
     if (!bestLink) return;
     if ($activeLink) resetLink();
     $activeLink = $(bestLink);
