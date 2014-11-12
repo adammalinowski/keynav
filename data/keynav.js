@@ -1,19 +1,3 @@
-/*
-
-todo
-- new bug: sometimes randomly jumps up/down a lot (in reddit)
-- could give higher weighting to fully-overlapped links for reddit browsing - negative?
-  - aiming to solve the non-expected behaviour of jumping-left to thumbnail when moving up
-- handling for links that wrap onto two lines?
-- make highlighting use border/outline, but in a way that works with overflow: hidden?
-  - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
-    css outline, and thus fails if the link has overflow:hidden. box-shadow has same issue.
-- somehow make enter work for elements that aren't real links but expect mouse
-  - note looks like you can't just trigger because content script cannot trigger page script
-    https://developer.mozilla.org/en-US/Add-ons/SDK/Guides/Content_Scripts/Interacting_with_page_scripts
-
-*/
-
 $(document).ready(function() {
 
 var $activeLink = undefined;
