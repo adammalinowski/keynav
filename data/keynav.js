@@ -1,7 +1,7 @@
 /*
 
 todo
-- todo deactivate keyboard when focused in contenteditable
+- deactivate keyboard when focused in contenteditable
 - handling for links that wrap onto two lines?
 - make highlighting use border/outline, but in a way that works with overflow: hidden?
   - not going well. firefox's default link focus is a hard-to-see dotted line, that just used
@@ -54,7 +54,7 @@ function computeLinks() {
     start = performance.now()
     computing = true;
     // as an optimization, do not calculate correct position of links at this point,
-    // (i.e. add scroll offsets) instead subtract offsets when doing getNextLink
+    // (i.e. add scroll offsets) instead save offsets at this point, then subtract when doing getNextLink
     pageYOffset = window.pageYOffset;
     pagexOffset = window.pageXOffset;
     linkIndexToEdges = []
@@ -73,13 +73,13 @@ function computeLinks() {
 }
 computeLinks();
 
-function getWindowEdges() {
-    // do not use jquery for viewport dimensions, returns document dimensions if no doctype
+function getViewportEdges() {
+    // do not use jquery for window dimensions, returns document dimensions if no doctype
     return {
-            'top': $(window).scrollTop(),
-            'bottom': $(window).scrollTop() + window.innerHeight,
-            'left': $(window).scrollLeft(),
-            'right': $(window).scrollLeft() + window.innerWidth
+            'top': window.pageYOffset,
+            'bottom': window.pageYOffset + window.innerHeight,
+            'left': window.pageXOffset,
+            'right': window.pageXOffset + window.innerWidth
         }
 }
 
@@ -114,25 +114,25 @@ obs.observe(document, {childList: true, subtree: true})
 function adjustScroll() {
     // if link is off-screen, scroll
 
-    var windowEdges = getWindowEdges();
+    var viewportEdges = getViewportEdges();
 
     // if link is beyond bottom
-    if (activeLinkEdges.bottom > windowEdges.bottom) {
+    if (activeLinkEdges.bottom > viewportEdges.bottom) {
         $(window).scrollTop(activeLinkEdges.bottom - window.innerHeight + 10);
     }
 
     // if link is beyond top
-    if (activeLinkEdges.top < windowEdges.top) {
+    if (activeLinkEdges.top < viewportEdges.top) {
         $(window).scrollTop(activeLinkEdges.top - 10);
     }
 
     // if link is beyond left
-    if (activeLinkEdges.left < windowEdges.left) {
+    if (activeLinkEdges.left < viewportEdges.left) {
         $(window).scrollLeft(activeLinkEdges.left - 50);
     }
 
     // if link is beyond right
-    if (activeLinkEdges.right > windowEdges.right) {
+    if (activeLinkEdges.right > viewportEdges.right) {
         $(window).scrollLeft(activeLinkEdges.left - 50);
     }
 }
@@ -207,20 +207,37 @@ function hozFitness(activeEdges, foundEdges) {
     return hozDistance(activeEdges, foundEdges) + (vertNearness(activeEdges, foundEdges) * 2.5)
 }
 
+function tooFarOffscreen(offsetViewportEdges, foundEdges) {
+    var tooFar = 250;
+    if (foundEdges.bottom < offsetViewportEdges.top - tooFar) return true;
+    if (foundEdges.top > offsetViewportEdges.bottom + tooFar) return true;
+    if (foundEdges.left > offsetViewportEdges.right + tooFar) return true;
+    if (foundEdges.right < offsetViewportEdges.left - tooFar) return true;
+    return false;
+}
+
+function simpleCopy(obj) {
+    var newObj = {};
+    for (var key in obj) newObj[key] = obj[key];
+    return newObj;
+}
+
 function getNextLink(direction) {
 
     if (domChanged) {
         recomputeLinks();
         domChanged = false;
     }
-    var windowEdges = getWindowEdges()
+
+    var viewportEdges = getViewportEdges();
+
     if ($activeLink) {
-        var linkVisible = (activeLinkEdges.bottom > windowEdges.top && activeLinkEdges.top < windowEdges.bottom && activeLinkEdges.right > windowEdges.left && activeLinkEdges.left < windowEdges.right)
+        var linkVisible = (activeLinkEdges.bottom > viewportEdges.top && activeLinkEdges.top < viewportEdges.bottom && activeLinkEdges.right > viewportEdges.left && activeLinkEdges.left < viewportEdges.right)
     }
 
     // if no active link, or link is off-screen, find link to activate
     if (!$activeLink || !linkVisible) {
-        var activeEdges = windowEdges;  // we want to check pos against the window edges
+        var activeEdges = simpleCopy(viewportEdges);  // we want to check pos against the window edges
 
         // fake a 1px high link at top or bottom of screen, make fitness be vertically closest to fake link
         if (direction == 'up') {
@@ -235,12 +252,18 @@ function getNextLink(direction) {
     }
 
     // optimization: instead of calculating actual link position for all links on the page
-    // subtract from edges of thing we are comparing to
+    // by adding scroll offset when computing, subtract that offset from edges we are comparing them to
     activeEdges = {
         'top': activeEdges.top - pageYOffset,
         'bottom': activeEdges.bottom - pageYOffset,
         'left': activeEdges.left - pageXOffset,
         'right': activeEdges.right - pageXOffset
+    }
+    offsetViewportEdges = {
+        'top': viewportEdges.top - pageYOffset,
+        'bottom': viewportEdges.bottom - pageYOffset,
+        'left': viewportEdges.left - pageXOffset,
+        'right': viewportEdges.right - pageXOffset
     }
 
     // apply pixel-tweaks to allow moving to adjacent link, define pos func to find links in valid position
@@ -267,6 +290,8 @@ function getNextLink(direction) {
         var foundEdges = linkIndexToEdges[i]
         // first check link is in valid position
         if (!pos(activeEdges, foundEdges)) continue;
+        // check if link isn't too far off screen
+        if (tooFarOffscreen(offsetViewportEdges, foundEdges)) continue;
         if (!bestLink) {
             // if we haven't yet found a link satisfying pos, take the first we find
             bestLink = linkIndexToLinks[i];
@@ -306,6 +331,8 @@ $(window).bind('keydown', function(e){
     if ($("input:focus,textarea:focus").length) {
         return;
     }
+
+    var focused = document.activeElement;
 
     if (e.which == 27) {  // escape to deactivate
         if ($activeLink) {
