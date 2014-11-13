@@ -1,16 +1,12 @@
-KeyNav 0.1
-----------
-----------
+# KeyNav 0.1
 
 
-Overview
------------
+## Overview
 
 Allows navigating around links on a webpage with the keyboard
 
 
-Keyboard commands
-------------------
+## Keyboard commands
 
 To move to a link, press `shift-[direction]`, e.g. to highlight the next link
 down press `shift-down`.
@@ -21,10 +17,9 @@ press `shift-enter`. To open in background tab press `control-shift-enter`.
 To deactivate highlighed link, press `escape`.
 
 
-Installation
-------------
+## Installation
 
-Firefox:
+### Firefox:
 
 1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1
 2. Click the green button labeled 'keynav.xpi'.
@@ -32,7 +27,7 @@ Firefox:
 4. Try it out by reloading any open tabs you have, or opening a new tab.
 
 
-Chrome:
+### Chrome:
 
 1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1
 2. Click the green button labeled 'keynav.crx' to download the extension file
@@ -43,14 +38,12 @@ Chrome:
 4. Try it out by reloading any open tabs you have, or opening a new tab.
 
 
-Source
-------
+## Source
 
 You can find the source here: https://github.com/adammalinowski/keynav
 The interesting stuff is all in here: https://github.com/adammalinowski/keynav/blob/master/data/keynav.js
 
 
-Conclusion
------------
+## Conclusion
 
 Happy surfing!
