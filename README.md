@@ -1,4 +1,4 @@
-# KeyNav 0.1
+# KeyNav 0.1.1
 
 
 ## Overview
