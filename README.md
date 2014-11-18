@@ -1,4 +1,4 @@
-# KeyNav 0.1
+# KeyNav 0.1.1
 
 
 ## Overview
@@ -21,7 +21,7 @@ To deactivate highlighed link, press `escape`.
 
 ### Firefox:
 
-1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1
+1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1.1
 2. Click the green button labeled 'keynav.xpi'.
 3. When prompted, click `allow`, then `install now`.
 4. Try it out by reloading any open tabs you have, or opening a new tab.
@@ -29,7 +29,7 @@ To deactivate highlighed link, press `escape`.
 
 ### Chrome:
 
-1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1
+1. Go to: https://github.com/adammalinowski/keynav/releases/tag/v0.1.1
 2. Click the green button labeled 'keynav.crx' to download the extension file
    (a message may appear saying "extensions cannot be added from this site",
     but this will not affect the download)
@@ -41,6 +41,7 @@ To deactivate highlighed link, press `escape`.
 ## Source
 
 You can find the source here: https://github.com/adammalinowski/keynav
+
 The interesting stuff is all in here: https://github.com/adammalinowski/keynav/blob/master/data/keynav.js
 
 
