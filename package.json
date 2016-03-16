@@ -1,9 +1,10 @@
 {
   "name": "keynav",
   "title": "KeyNav",
-  "id": "jid1-ZAs3HKD8PfNbXQ",
+  "id": "jid1-ZAs3HKD8PfNbXQ@jetpack",
   "description": "Keyboard link navigation",
   "author": "Adam Malinowski",
   "license": "MPL 2.0",
-  "version": "0.1.1"
+  "version": "0.1.2",
+  "main": "./data/keynav.js"
 }
