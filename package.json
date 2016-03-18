@@ -4,7 +4,7 @@
   "id": "keynav@jetpack",
   "description": "Keyboard link navigation",
   "author": "Adam Malinowski",
-  "license": "MPL 2.0",
+  "license": "MIT",
   "version": "0.1.2",
   "main": "./data/keynav.js"
 }

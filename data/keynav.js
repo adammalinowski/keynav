@@ -1,6 +1,5 @@
 $(document).ready(function() {
 
-
 // the active, highlighted link, with methods for deactivating and updating
 var activeLink = {
 
@@ -275,6 +274,7 @@ function getNextLink(direction) {
         // if no active link or link is off-screen, find link to activate by imitating
         // a link at some point in the screen, depending on direction pressed
         var activeEdges = simpleCopy(viewportEdges);
+        var tooFar = 0;  // do not find any links off-screen
         if (direction == 'up') {
             // imitate a 0-size link at bottom-left-middle of screen
             activeEdges.top = activeEdges.bottom;
@@ -292,8 +292,6 @@ function getNextLink(direction) {
                 activeEdges.left = activeEdges.right;
             }
         }
-        var tooFar = 0;  // do not find any links off-screen
-
     } else {
         // find link relative to activelink, at most 250px off screen
         var tooFar = 250;
