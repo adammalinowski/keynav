@@ -6,5 +6,5 @@
   "author": "Adam Malinowski",
   "license": "MIT",
   "version": "0.1.2",
-  "main": "./data/keynav.js"
+  "main": "lib/main.js"
 }
